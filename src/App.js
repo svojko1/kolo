@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Camera,
   CircleSlash,
-  Scan,
-  BookOpen,
   Type,
   RotateCcw,
   ChevronDown,
   ChevronUp,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
@@ -79,6 +78,7 @@ const mockBookService = {
   },
 };
 
+// Keep the existing BookDetails and evaluateBook functions unchanged
 const evaluateBook = (book, rules) => {
   const decisions = [];
   let shouldKeep = true;
@@ -102,6 +102,7 @@ const evaluateBook = (book, rules) => {
   };
 };
 
+// Keep the existing BookDetails component unchanged
 const BookDetails = ({ book, evaluation }) => {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
 
@@ -211,7 +212,6 @@ const BookDetails = ({ book, evaluation }) => {
 
 const App = () => {
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [manualISBN, setManualISBN] = useState("");
   const [scannedBook, setScannedBook] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -220,24 +220,12 @@ const App = () => {
   const [scanDebug, setScanDebug] = useState(null);
 
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
   const codeReaderRef = useRef(null);
 
   const rules = {
     maxAge: 10,
     recycleGenres: ["Časopis", "Noviny", "Technológia"],
   };
-
-  useEffect(() => {
-    codeReaderRef.current = new BrowserMultiFormatReader();
-
-    return () => {
-      if (codeReaderRef.current) {
-        codeReaderRef.current.reset();
-      }
-    };
-  }, []);
 
   const startCamera = async () => {
     try {
@@ -261,7 +249,6 @@ const App = () => {
 
             const cleanISBN = scannedText.replace(/[-\s]/g, "");
             if (/^(?:\d{10}|\d{13})$/.test(cleanISBN)) {
-              setIsScanning(false);
               await fetchBook(cleanISBN);
             } else {
               setScanDebug(`Neplatný formát ISBN: ${scannedText}`);
@@ -292,7 +279,6 @@ const App = () => {
     if (codeReaderRef.current) {
       codeReaderRef.current.reset();
       setIsStreaming(false);
-      setIsScanning(false);
     }
   };
 
@@ -311,7 +297,6 @@ const App = () => {
         setScanDebug(`Úspešne nájdená kniha: ${book.title}`);
         stopCamera();
       } else {
-        // Instead of setting error, show the NotFoundState component
         setScannedBook({ notFound: true, isbn });
         setScanDebug(`Nenašli sa údaje o knihe pre ISBN: ${isbn}`);
       }
@@ -335,12 +320,19 @@ const App = () => {
     setScannedBook(null);
     setManualISBN("");
     setError(null);
-    stopCamera();
+    startCamera(); // Restart camera when resetting
   };
 
+  // Initialize camera and scanner on component mount
   useEffect(() => {
+    codeReaderRef.current = new BrowserMultiFormatReader();
+    startCamera();
+
+    // Cleanup on unmount
     return () => {
-      stopCamera();
+      if (codeReaderRef.current) {
+        codeReaderRef.current.reset();
+      }
     };
   }, []);
 
@@ -378,10 +370,10 @@ const App = () => {
                 />
                 {!isStreaming && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/70 text-center px-4">
-                    Kliknite na "Spustiť kameru" pre začatie skenovania
+                    Inicializácia kamery...
                   </div>
                 )}
-                {isScanning && (
+                {isStreaming && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-48 h-48 border-2 border-blue-500 rounded-lg animate-pulse">
                       <div className="w-full h-1 bg-blue-500 animate-scan"></div>
@@ -390,62 +382,31 @@ const App = () => {
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={isStreaming ? stopCamera : startCamera}
-                  className="w-full py-6 text-lg"
-                  variant={isStreaming ? "destructive" : "default"}
-                >
-                  {isStreaming ? (
-                    <>
-                      <CircleSlash className="mr-2 h-5 w-5" />
-                      Zastaviť kameru
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="mr-2 h-5 w-5" />
-                      Spustiť kameru
-                    </>
-                  )}
-                </Button>
-
-                {isStreaming && (
-                  <Button
-                    onClick={() => setIsScanning(!isScanning)}
-                    className="w-full py-6 text-lg"
-                    variant={isScanning ? "outline" : "default"}
-                  >
-                    <Scan className="mr-2 h-5 w-5" />
-                    {isScanning ? "Zastaviť skenovanie" : "Začať skenovanie"}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full py-6 text-lg">
+                    <Type className="mr-2 h-5 w-5" />
+                    Zadať ISBN manuálne
                   </Button>
-                )}
-
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full py-6 text-lg">
-                      <Type className="mr-2 h-5 w-5" />
-                      Zadať ISBN manuálne
+                </DialogTrigger>
+                <DialogContent className="w-[90%]">
+                  <DialogHeader>
+                    <DialogTitle>Zadajte ISBN</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleManualSubmit} className="space-y-4">
+                    <Input
+                      placeholder="978-0307474278"
+                      value={manualISBN}
+                      onChange={(e) => setManualISBN(e.target.value)}
+                      className="font-mono text-lg py-6"
+                    />
+                    <Button type="submit" className="w-full py-6">
+                      <BookOpen className="mr-2 h-5 w-5" />
+                      Vyhľadať knihu
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[90%]">
-                    <DialogHeader>
-                      <DialogTitle>Zadajte ISBN</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleManualSubmit} className="space-y-4">
-                      <Input
-                        placeholder="978-0307474278"
-                        value={manualISBN}
-                        onChange={(e) => setManualISBN(e.target.value)}
-                        className="font-mono text-lg py-6"
-                      />
-                      <Button type="submit" className="w-full py-6">
-                        <BookOpen className="mr-2 h-5 w-5" />
-                        Vyhľadať knihu
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               {error && (
                 <Alert variant="destructive">
