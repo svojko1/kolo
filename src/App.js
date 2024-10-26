@@ -268,7 +268,7 @@ const App = () => {
   const codeReaderRef = useRef(null);
 
   const rules = {
-    maxAge: 10,
+    maxAge: 30,
     recycleGenres: ["Časopis", "Noviny", "Technológia"],
   };
 
