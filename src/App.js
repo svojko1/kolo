@@ -317,6 +317,7 @@ const App = () => {
 
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
+  const streamRef = useRef(null);
 
   const rules = {
     maxAge: 30,
@@ -325,6 +326,9 @@ const App = () => {
 
   const startCamera = async () => {
     try {
+      // Make sure previous stream is stopped
+      await stopCamera();
+
       setScanDebug("Inicializácia kamery...");
       const constraints = {
         video: {
@@ -333,6 +337,15 @@ const App = () => {
           height: { min: 480, ideal: 720, max: 1080 },
         },
       };
+
+      // Get direct access to stream first
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      // Set stream to video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
 
       await codeReaderRef.current.decodeFromVideoDevice(
         undefined,
@@ -355,8 +368,7 @@ const App = () => {
               setScanDebug(`Chyba skenovania: ${error.message}`);
             }
           }
-        },
-        constraints
+        }
       );
 
       setIsStreaming(true);
@@ -371,7 +383,14 @@ const App = () => {
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = async () => {
+    // First stop all tracks of the active stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    // Then reset the code reader
     if (codeReaderRef.current) {
       codeReaderRef.current.reset();
       setIsStreaming(false);
@@ -412,11 +431,11 @@ const App = () => {
     }
   };
 
-  const resetApp = () => {
+  const resetApp = async () => {
     setScannedBook(null);
     setManualISBN("");
     setError(null);
-    startCamera(); // Restart camera when resetting
+    await startCamera(); // Wait for camera to start
   };
 
   // Initialize camera and scanner on component mount
@@ -424,11 +443,8 @@ const App = () => {
     codeReaderRef.current = new BrowserMultiFormatReader();
     startCamera();
 
-    // Cleanup on unmount
     return () => {
-      if (codeReaderRef.current) {
-        codeReaderRef.current.reset();
-      }
+      stopCamera();
     };
   }, []);
 
