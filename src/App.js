@@ -28,7 +28,6 @@ import {
 } from "./components/ui/collapsible";
 import { BrowserMultiFormatReader } from "@zxing/library";
 
-// Mock data service remains unchanged
 const mockBookService = {
   async getBookByISBN(isbn) {
     try {
@@ -42,30 +41,30 @@ const mockBookService = {
         return {
           isbn: isbn,
           title: book.title,
-          author: book.authors ? book.authors.join(", ") : "Unknown",
+          author: book.authors ? book.authors.join(", ") : "Neznámy",
           publicationYear: book.publishedDate
             ? parseInt(book.publishedDate.substring(0, 4))
             : null,
-          genre: book.categories ? book.categories[0] : "Unknown",
-          publisher: book.publisher || "Unknown",
+          genre: book.categories ? book.categories[0] : "Neznámy",
+          publisher: book.publisher || "Neznámy",
         };
       }
 
       const mockBooks = {
         9783161484100: {
           isbn: "9783161484100",
-          title: "Modern Web Development",
-          author: "Jane Smith",
+          title: "Moderný vývoj webu",
+          author: "Jana Kováčová",
           publicationYear: 2020,
-          genre: "Technology",
+          genre: "Technológia",
           publisher: "Tech Press",
         },
         9780307474278: {
           isbn: "978-0-307-47427-8",
-          title: "The Road",
+          title: "Cesta",
           author: "Cormac McCarthy",
           publicationYear: 2006,
-          genre: "Fiction",
+          genre: "Beletria",
           publisher: "Vintage",
         },
       };
@@ -73,13 +72,12 @@ const mockBookService = {
       const normalizedISBN = isbn.replace(/[-\s]/g, "");
       return mockBooks[normalizedISBN] || null;
     } catch (error) {
-      console.error("Error fetching book:", error);
+      console.error("Chyba pri načítaní knihy:", error);
       return null;
     }
   },
 };
 
-// Decision service remains unchanged
 const evaluateBook = (book, rules) => {
   const decisions = [];
   let shouldKeep = true;
@@ -87,13 +85,13 @@ const evaluateBook = (book, rules) => {
   const bookAge = new Date().getFullYear() - book.publicationYear;
   if (bookAge > rules.maxAge) {
     decisions.push(
-      `Book is ${bookAge} years old (older than ${rules.maxAge} years)`
+      `Kniha je stará ${bookAge} rokov (staršia ako ${rules.maxAge} rokov)`
     );
     shouldKeep = false;
   }
 
   if (rules.recycleGenres.includes(book.genre)) {
-    decisions.push(`Genre "${book.genre}" is in recycle list`);
+    decisions.push(`Žáner "${book.genre}" je v zozname na recykláciu`);
     shouldKeep = false;
   }
 
@@ -103,7 +101,6 @@ const evaluateBook = (book, rules) => {
   };
 };
 
-// Improved BookDetails component with better status visibility
 const BookDetails = ({ book, evaluation }) => {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
 
@@ -140,7 +137,7 @@ const BookDetails = ({ book, evaluation }) => {
             variant="outline"
             className={`${statusStyles.badge} text-lg px-6 py-2`}
           >
-            {evaluation.shouldKeep ? "Keep" : "Recycle"}
+            {evaluation.shouldKeep ? "Ponechať" : "Recyklovať"}
           </Badge>
           <span className={`text-sm ${statusStyles.value} opacity-70`}>
             ISBN: {book.isbn}
@@ -154,19 +151,19 @@ const BookDetails = ({ book, evaluation }) => {
           </h2>
           <div className="flex flex-wrap gap-4">
             <div className="min-w-[140px]">
-              <p className={`text-sm ${statusStyles.label}`}>Author</p>
+              <p className={`text-sm ${statusStyles.label}`}>Autor</p>
               <p className={`font-medium ${statusStyles.value}`}>
                 {book.author}
               </p>
             </div>
             <div>
-              <p className={`text-sm ${statusStyles.label}`}>Year</p>
+              <p className={`text-sm ${statusStyles.label}`}>Rok</p>
               <p className={`font-medium ${statusStyles.value}`}>
                 {book.publicationYear}
               </p>
             </div>
             <div>
-              <p className={`text-sm ${statusStyles.label}`}>Genre</p>
+              <p className={`text-sm ${statusStyles.label}`}>Žáner</p>
               <p className={`font-medium ${statusStyles.value}`}>
                 {book.genre}
               </p>
@@ -176,7 +173,7 @@ const BookDetails = ({ book, evaluation }) => {
 
         <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100">
-            View Decision Details
+            Zobraziť detaily rozhodnutia
             {isDebugOpen ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
@@ -200,7 +197,7 @@ const BookDetails = ({ book, evaluation }) => {
                   className={`text-sm ${statusStyles.list} flex items-center gap-2`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                  No issues found - book meets all criteria
+                  Neboli nájdené žiadne problémy - kniha spĺňa všetky kritériá
                 </p>
               )}
             </div>
@@ -211,11 +208,7 @@ const BookDetails = ({ book, evaluation }) => {
   );
 };
 
-// Main App component remains unchanged
 const App = () => {
-  // ... rest of the App component code remains exactly the same ...
-
-  // State
   const [isStreaming, setIsStreaming] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [manualISBN, setManualISBN] = useState("");
@@ -225,19 +218,16 @@ const App = () => {
   const [lastScanned, setLastScanned] = useState(null);
   const [scanDebug, setScanDebug] = useState(null);
 
-  // Refs
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const codeReaderRef = useRef(null);
 
-  // Rules configuration
   const rules = {
     maxAge: 10,
-    recycleGenres: ["Magazine", "Newspaper", "Technology"],
+    recycleGenres: ["Časopis", "Noviny", "Technológia"],
   };
 
-  // Initialize barcode reader
   useEffect(() => {
     codeReaderRef.current = new BrowserMultiFormatReader();
 
@@ -248,10 +238,9 @@ const App = () => {
     };
   }, []);
 
-  // Camera handling
   const startCamera = async () => {
     try {
-      setScanDebug("Initializing camera...");
+      setScanDebug("Inicializácia kamery...");
       const constraints = {
         video: {
           facingMode: "environment",
@@ -267,19 +256,19 @@ const App = () => {
           if (result) {
             const scannedText = result.getText();
             setLastScanned(scannedText);
-            setScanDebug(`Detected code: ${scannedText}`);
+            setScanDebug(`Detegovaný kód: ${scannedText}`);
 
             const cleanISBN = scannedText.replace(/[-\s]/g, "");
             if (/^(?:\d{10}|\d{13})$/.test(cleanISBN)) {
               setIsScanning(false);
               await fetchBook(cleanISBN);
             } else {
-              setScanDebug(`Invalid ISBN format: ${scannedText}`);
+              setScanDebug(`Neplatný formát ISBN: ${scannedText}`);
             }
           }
           if (error && error?.message) {
             if (!error.message.includes("not found")) {
-              setScanDebug(`Scan error: ${error.message}`);
+              setScanDebug(`Chyba skenovania: ${error.message}`);
             }
           }
         },
@@ -288,13 +277,13 @@ const App = () => {
 
       setIsStreaming(true);
       setError(null);
-      setScanDebug("Camera ready. Point at an ISBN barcode.");
+      setScanDebug("Kamera je pripravená. Namierte na čiarový kód ISBN.");
     } catch (err) {
       setError(
-        `Error accessing camera: ${err.message}. Please check permissions or use manual input.`
+        `Chyba pri prístupe ku kamere: ${err.message}. Prosím, skontrolujte povolenia alebo použite manuálne zadanie.`
       );
-      setScanDebug(`Camera error: ${err.message}`);
-      console.error("Error accessing camera:", err);
+      setScanDebug(`Chyba kamery: ${err.message}`);
+      console.error("Chyba pri prístupe ku kamere:", err);
     }
   };
 
@@ -307,27 +296,27 @@ const App = () => {
   };
 
   const fetchBook = async (isbn) => {
-    if (isLoading) return; // Prevent multiple fetches
+    if (isLoading) return;
 
     setIsLoading(true);
     setError(null);
-    setScanDebug(`Fetching book data for ISBN: ${isbn}`);
+    setScanDebug(`Vyhľadávanie údajov o knihe pre ISBN: ${isbn}`);
 
     try {
       const book = await mockBookService.getBookByISBN(isbn);
       if (book) {
         const evaluation = evaluateBook(book, rules);
         setScannedBook({ ...book, evaluation });
-        setScanDebug(`Successfully found book: ${book.title}`);
-        stopCamera(); // Automatically stop camera after successful scan
+        setScanDebug(`Úspešne nájdená kniha: ${book.title}`);
+        stopCamera();
       } else {
-        setError(`No book found with ISBN: ${isbn}`);
-        setScanDebug(`No book data found for ISBN: ${isbn}`);
+        setError(`Nebola nájdená kniha s ISBN: ${isbn}`);
+        setScanDebug(`Nenašli sa údaje o knihe pre ISBN: ${isbn}`);
         setScannedBook(null);
       }
     } catch (err) {
-      setError(`Error fetching book details: ${err.message}`);
-      setScanDebug(`API error: ${err.message}`);
+      setError(`Chyba pri načítaní detailov knihy: ${err.message}`);
+      setScanDebug(`Chyba API: ${err.message}`);
       setScannedBook(null);
     } finally {
       setIsLoading(false);
@@ -359,7 +348,7 @@ const App = () => {
       <Card className="max-w-md mx-auto shadow-lg">
         <CardHeader className="space-y-1">
           <CardTitle className="flex items-center justify-between">
-            <span className="text-lg">Book Scanner</span>
+            <span className="text-lg">Skener kníh</span>
             {(scannedBook || error) && (
               <Button
                 variant="ghost"
@@ -373,7 +362,7 @@ const App = () => {
           </CardTitle>
           {!scannedBook && !isLoading && (
             <p className="text-sm text-gray-500">
-              Scan a book's ISBN or enter it manually
+              Naskenujte ISBN knihy alebo ho zadajte manuálne
             </p>
           )}
         </CardHeader>
@@ -384,11 +373,11 @@ const App = () => {
                 <video
                   ref={videoRef}
                   className="w-full h-full object-cover"
-                  playsInline // Better mobile handling
+                  playsInline
                 />
                 {!isStreaming && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/70 text-center px-4">
-                    Tap "Start Camera" to begin scanning
+                    Kliknite na "Spustiť kameru" pre začatie skenovania
                   </div>
                 )}
                 {isScanning && (
@@ -409,12 +398,12 @@ const App = () => {
                   {isStreaming ? (
                     <>
                       <CircleSlash className="mr-2 h-5 w-5" />
-                      Stop Camera
+                      Zastaviť kameru
                     </>
                   ) : (
                     <>
                       <Camera className="mr-2 h-5 w-5" />
-                      Start Camera
+                      Spustiť kameru
                     </>
                   )}
                 </Button>
@@ -426,7 +415,7 @@ const App = () => {
                     variant={isScanning ? "outline" : "default"}
                   >
                     <Scan className="mr-2 h-5 w-5" />
-                    {isScanning ? "Stop Scanning" : "Start Scanning"}
+                    {isScanning ? "Zastaviť skenovanie" : "Začať skenovanie"}
                   </Button>
                 )}
 
@@ -434,12 +423,12 @@ const App = () => {
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full py-6 text-lg">
                       <Type className="mr-2 h-5 w-5" />
-                      Enter ISBN Manually
+                      Zadať ISBN manuálne
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="w-[90%]">
                     <DialogHeader>
-                      <DialogTitle>Enter ISBN</DialogTitle>
+                      <DialogTitle>Zadajte ISBN</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleManualSubmit} className="space-y-4">
                       <Input
@@ -450,7 +439,7 @@ const App = () => {
                       />
                       <Button type="submit" className="w-full py-6">
                         <BookOpen className="mr-2 h-5 w-5" />
-                        Look Up Book
+                        Vyhľadať knihu
                       </Button>
                     </form>
                   </DialogContent>
@@ -469,7 +458,7 @@ const App = () => {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
               <p className="mt-4 text-sm text-gray-500">
-                Looking up book details...
+                Vyhľadávanie detailov knihy...
               </p>
             </div>
           )}
