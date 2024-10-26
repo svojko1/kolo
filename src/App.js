@@ -27,6 +27,7 @@ import {
   CollapsibleTrigger,
 } from "./components/ui/collapsible";
 import { BrowserMultiFormatReader } from "@zxing/library";
+import NotFoundState from "./components/NotFoundState";
 
 const mockBookService = {
   async getBookByISBN(isbn) {
@@ -310,9 +311,9 @@ const App = () => {
         setScanDebug(`Úspešne nájdená kniha: ${book.title}`);
         stopCamera();
       } else {
-        setError(`Nebola nájdená kniha s ISBN: ${isbn}`);
+        // Instead of setting error, show the NotFoundState component
+        setScannedBook({ notFound: true, isbn });
         setScanDebug(`Nenašli sa údaje o knihe pre ISBN: ${isbn}`);
-        setScannedBook(null);
       }
     } catch (err) {
       setError(`Chyba pri načítaní detailov knihy: ${err.message}`);
@@ -463,12 +464,15 @@ const App = () => {
             </div>
           )}
 
-          {scannedBook && (
-            <BookDetails
-              book={scannedBook}
-              evaluation={scannedBook.evaluation}
-            />
-          )}
+          {scannedBook &&
+            (scannedBook.notFound ? (
+              <NotFoundState isbn={scannedBook.isbn} />
+            ) : (
+              <BookDetails
+                book={scannedBook}
+                evaluation={scannedBook.evaluation}
+              />
+            ))}
         </CardContent>
       </Card>
 
