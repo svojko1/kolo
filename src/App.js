@@ -7,7 +7,10 @@ import {
   User2,
   Tags,
   Info,
+  BookOpenCheck,
+  Recycle as RecycleIcon,
   ScanLine,
+  Search,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import {
@@ -35,6 +38,7 @@ import {
 } from "./components/ui/collapsible";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import NotFoundState from "./components/NotFoundState";
+import VisionBookSearch from "./components/VisionAnalyzer";
 
 const bookService = {
   async getBookByISBN(isbn) {
@@ -119,7 +123,8 @@ const evaluateBook = (book, rules) => {
   const bookAge = new Date().getFullYear() - book.publicationYear;
   if (bookAge > rules.maxAge) {
     decisions.push(
-      `Kniha je stará ${bookAge} rokov (staršia ako ${rules.maxAge} rokov)`
+      // `Kniha je stará ${bookAge} rokov (staršia ako ${rules.maxAge} rokov)`
+      "Kniha nespĺňa dostatočné skóre"
     );
     shouldKeep = false;
   }
@@ -174,18 +179,23 @@ const BookDetails = ({ book, evaluation, onNext }) => {
   const displayGenre = String(book.genre || "Neznámy");
   const displayDescription = book.description ? String(book.description) : null;
 
+  const StatusIcon = evaluation.shouldKeep ? BookOpenCheck : RecycleIcon;
+
   return (
     <Card
       className={`mt-4 ${statusStyles.card} transition-colors duration-200`}
     >
       <CardHeader className={`${statusStyles.header} pb-3`}>
         <div className="flex items-center justify-between mb-2">
-          <Badge
-            variant="outline"
-            className={`${statusStyles.badge} text-base px-4 py-1`}
-          >
-            {evaluation.shouldKeep ? "Ponechať" : "Recyklovať"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <StatusIcon className={`h-5 w-5 ${statusStyles.icon}`} />
+            <Badge
+              variant="outline"
+              className={`${statusStyles.badge} text-base px-4 py-1`}
+            >
+              {evaluation.shouldKeep ? "Ponechať" : "Recyklovať"}
+            </Badge>
+          </div>
           <span className={`text-xs ${statusStyles.value} opacity-70`}>
             ISBN: {book.isbn}
           </span>
@@ -195,6 +205,11 @@ const BookDetails = ({ book, evaluation, onNext }) => {
         >
           {displayTitle}
         </h2>
+        {evaluation.shouldKeep && (
+          <p className={`text-sm ${statusStyles.value} mt-1 italic`}>
+            Táto kniha bude ďalej kolovať a nájde nový domov
+          </p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4 pt-2">
@@ -448,6 +463,24 @@ const App = () => {
     };
   }, []);
 
+  const handleVisionBookFound = (book) => {
+    if (!book) return;
+
+    // Transform book data to match your app's format
+    const transformedBook = {
+      isbn: book.isbn || "Unknown",
+      title: book.title || "Neznámy názov",
+      author: book.authors || "Neznámy",
+      publicationYear: book.publishedDate ? parseInt(book.publishedDate) : null,
+      genre: "Neznámy", // Vision API doesn't provide genre information
+      publisher: book.publisher || "Neznámy",
+    };
+
+    // Use existing evaluation logic
+    const evaluation = evaluateBook(transformedBook, rules);
+    setScannedBook({ ...transformedBook, evaluation });
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <Card className="max-w-md mx-auto shadow-lg">
@@ -467,7 +500,7 @@ const App = () => {
           </CardTitle>
           {!scannedBook && !isLoading && (
             <p className="text-sm text-gray-500">
-              Naskenujte ISBN knihy alebo ho zadajte manuálne
+              Naskenujte ISBN knihy alebo použite iný spôsob
             </p>
           )}
         </CardHeader>
@@ -494,31 +527,50 @@ const App = () => {
                 )}
               </div>
 
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full py-6 text-lg">
-                    <Type className="mr-2 h-5 w-5" />
-                    Zadať ISBN manuálne
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[90%]">
-                  <DialogHeader>
-                    <DialogTitle>Zadajte ISBN</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleManualSubmit} className="space-y-4">
-                    <Input
-                      placeholder="978-0307474278"
-                      value={manualISBN}
-                      onChange={(e) => setManualISBN(e.target.value)}
-                      className="font-mono text-lg py-6"
-                    />
-                    <Button type="submit" className="w-full py-6">
-                      <BookOpen className="mr-2 h-5 w-5" />
-                      Vyhľadať knihu
+              <div className="flex flex-col gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full py-6 text-lg">
+                      <Type className="mr-2 h-5 w-5" />
+                      Zadať ISBN manuálne
                     </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="w-[90%]">
+                    <DialogHeader>
+                      <DialogTitle>Zadajte ISBN</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleManualSubmit} className="space-y-4">
+                      <Input
+                        placeholder="978-0307474278"
+                        value={manualISBN}
+                        onChange={(e) => setManualISBN(e.target.value)}
+                        className="font-mono text-lg py-6"
+                      />
+                      <Button type="submit" className="w-full py-6">
+                        <BookOpen className="mr-2 h-5 w-5" />
+                        Vyhľadať knihu
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full py-6 text-lg">
+                      <Search className="mr-2 h-5 w-5" />
+                      Nemám ISBN
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[90%] max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Vyhľadať podľa obalu knihy</DialogTitle>
+                    </DialogHeader>
+                    <div className="mt-4">
+                      <VisionBookSearch onBookFound={handleVisionBookFound} />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
 
               {error && (
                 <Alert variant="destructive">
