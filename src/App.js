@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Camera,
   CircleSlash,
+  Scan,
+  BookOpen,
   Type,
   RotateCcw,
   ChevronDown,
   ChevronUp,
-  BookOpen,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
@@ -28,57 +29,82 @@ import {
 import { BrowserMultiFormatReader } from "@zxing/library";
 import NotFoundState from "./components/NotFoundState";
 
-const mockBookService = {
+const bookService = {
   async getBookByISBN(isbn) {
     try {
-      const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-      );
+      // First try Open Library API
+      const openLibraryUrl = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+      const response = await fetch(openLibraryUrl);
       const data = await response.json();
+      const bookData = data[`ISBN:${isbn}`];
 
-      if (data.items && data.items.length > 0) {
-        const book = data.items[0].volumeInfo;
+      if (bookData) {
+        // Transform Open Library data to match our app's format
+        // Handle cases where author might be an object
+        const authors = bookData.authors
+          ? bookData.authors
+              .map((author) =>
+                typeof author === "object" ? author.name : author
+              )
+              .join(", ")
+          : "Neznámy";
+
+        // Handle cases where description might be an object
+        const description = bookData.description
+          ? typeof bookData.description === "object"
+            ? bookData.description.value
+            : bookData.description
+          : null;
+
+        // Handle cases where subjects might be objects
+        const genre = bookData.subjects
+          ? typeof bookData.subjects[0] === "object"
+            ? bookData.subjects[0].name
+            : bookData.subjects[0]
+          : "Neznámy";
+
         return {
           isbn: isbn,
-          title: book.title,
+          title: bookData.title || "Neznámy názov",
+          author: authors,
+          publicationYear: bookData.publish_date
+            ? parseInt(bookData.publish_date.match(/\d{4}/)?.[0])
+            : null,
+          genre: genre,
+          publisher: bookData.publishers?.[0] || "Neznámy",
+          description: description,
+        };
+      }
+
+      // If Open Library fails, try Google Books API as fallback
+      const googleResponse = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+      );
+      const googleData = await googleResponse.json();
+
+      if (googleData.items && googleData.items.length > 0) {
+        const book = googleData.items[0].volumeInfo;
+        return {
+          isbn: isbn,
+          title: book.title || "Neznámy názov",
           author: book.authors ? book.authors.join(", ") : "Neznámy",
           publicationYear: book.publishedDate
             ? parseInt(book.publishedDate.substring(0, 4))
             : null,
           genre: book.categories ? book.categories[0] : "Neznámy",
           publisher: book.publisher || "Neznámy",
+          description: book.description || null,
         };
       }
 
-      const mockBooks = {
-        9783161484100: {
-          isbn: "9783161484100",
-          title: "Moderný vývoj webu",
-          author: "Jana Kováčová",
-          publicationYear: 2020,
-          genre: "Technológia",
-          publisher: "Tech Press",
-        },
-        9780307474278: {
-          isbn: "978-0-307-47427-8",
-          title: "Cesta",
-          author: "Cormac McCarthy",
-          publicationYear: 2006,
-          genre: "Beletria",
-          publisher: "Vintage",
-        },
-      };
-
-      const normalizedISBN = isbn.replace(/[-\s]/g, "");
-      return mockBooks[normalizedISBN] || null;
+      return null;
     } catch (error) {
       console.error("Chyba pri načítaní knihy:", error);
-      return null;
+      throw new Error("Nepodarilo sa načítať údaje o knihe");
     }
   },
 };
 
-// Keep the existing BookDetails and evaluateBook functions unchanged
 const evaluateBook = (book, rules) => {
   const decisions = [];
   let shouldKeep = true;
@@ -129,6 +155,15 @@ const BookDetails = ({ book, evaluation }) => {
         list: "text-red-800",
       };
 
+  // Ensure all displayed values are strings
+  const displayTitle = String(book.title || "Neznámy názov");
+  const displayAuthor = String(book.author || "Neznámy");
+  const displayYear = book.publicationYear
+    ? String(book.publicationYear)
+    : "Neznámy";
+  const displayGenre = String(book.genre || "Neznámy");
+  const displayDescription = book.description ? String(book.description) : null;
+
   return (
     <Card
       className={`mt-4 ${statusStyles.card} transition-colors duration-200`}
@@ -149,27 +184,37 @@ const BookDetails = ({ book, evaluation }) => {
       <CardContent className="space-y-4">
         <div className="space-y-3">
           <h2 className={`text-xl font-semibold ${statusStyles.title}`}>
-            {book.title}
+            {displayTitle}
           </h2>
           <div className="flex flex-wrap gap-4">
             <div className="min-w-[140px]">
               <p className={`text-sm ${statusStyles.label}`}>Autor</p>
               <p className={`font-medium ${statusStyles.value}`}>
-                {book.author}
+                {displayAuthor}
               </p>
             </div>
             <div>
               <p className={`text-sm ${statusStyles.label}`}>Rok</p>
               <p className={`font-medium ${statusStyles.value}`}>
-                {book.publicationYear}
+                {displayYear}
               </p>
             </div>
             <div>
               <p className={`text-sm ${statusStyles.label}`}>Žáner</p>
               <p className={`font-medium ${statusStyles.value}`}>
-                {book.genre}
+                {displayGenre}
               </p>
             </div>
+            {displayDescription && (
+              <div className="w-full">
+                <p className={`text-sm ${statusStyles.label}`}>Popis</p>
+                <p className={`font-medium ${statusStyles.value} text-sm`}>
+                  {displayDescription.length > 200
+                    ? `${displayDescription.substring(0, 200)}...`
+                    : displayDescription}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -290,7 +335,7 @@ const App = () => {
     setScanDebug(`Vyhľadávanie údajov o knihe pre ISBN: ${isbn}`);
 
     try {
-      const book = await mockBookService.getBookByISBN(isbn);
+      const book = await bookService.getBookByISBN(isbn);
       if (book) {
         const evaluation = evaluateBook(book, rules);
         setScannedBook({ ...book, evaluation });
