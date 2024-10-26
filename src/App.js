@@ -1,16 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Camera,
-  CircleSlash,
-  Scan,
-  BookOpen,
-  Type,
-  RotateCcw,
   ChevronDown,
   ChevronUp,
+  BookOpen,
+  Calendar,
+  User2,
+  Tags,
+  Info,
+  ScanLine,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "./components/ui/card";
+import { RotateCcw, Type } from "lucide-react";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
@@ -128,9 +135,9 @@ const evaluateBook = (book, rules) => {
   };
 };
 
-// Keep the existing BookDetails component unchanged
-const BookDetails = ({ book, evaluation }) => {
+const BookDetails = ({ book, evaluation, onNext }) => {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   if (!book) return null;
 
@@ -144,6 +151,8 @@ const BookDetails = ({ book, evaluation }) => {
         label: "text-green-600",
         value: "text-green-900",
         list: "text-green-800",
+        icon: "text-green-600",
+        button: "bg-green-600 hover:bg-green-700 text-white",
       }
     : {
         card: "bg-red-50 border-red-200",
@@ -153,9 +162,10 @@ const BookDetails = ({ book, evaluation }) => {
         label: "text-red-600",
         value: "text-red-900",
         list: "text-red-800",
+        icon: "text-red-600",
+        button: "bg-red-600 hover:bg-red-700 text-white",
       };
 
-  // Ensure all displayed values are strings
   const displayTitle = String(book.title || "Neznámy názov");
   const displayAuthor = String(book.author || "Neznámy");
   const displayYear = book.publicationYear
@@ -168,59 +178,93 @@ const BookDetails = ({ book, evaluation }) => {
     <Card
       className={`mt-4 ${statusStyles.card} transition-colors duration-200`}
     >
-      <CardHeader className={`${statusStyles.header}`}>
-        <div className="flex items-center justify-between">
+      <CardHeader className={`${statusStyles.header} pb-3`}>
+        <div className="flex items-center justify-between mb-2">
           <Badge
             variant="outline"
-            className={`${statusStyles.badge} text-lg px-6 py-2`}
+            className={`${statusStyles.badge} text-base px-4 py-1`}
           >
             {evaluation.shouldKeep ? "Ponechať" : "Recyklovať"}
           </Badge>
-          <span className={`text-sm ${statusStyles.value} opacity-70`}>
+          <span className={`text-xs ${statusStyles.value} opacity-70`}>
             ISBN: {book.isbn}
           </span>
         </div>
+        <h2
+          className={`text-xl font-semibold ${statusStyles.title} line-clamp-2`}
+        >
+          {displayTitle}
+        </h2>
       </CardHeader>
-      <CardContent className="space-y-4">
+
+      <CardContent className="space-y-4 pt-2">
         <div className="space-y-3">
-          <h2 className={`text-xl font-semibold ${statusStyles.title}`}>
-            {displayTitle}
-          </h2>
-          <div className="flex flex-wrap gap-4">
-            <div className="min-w-[140px]">
-              <p className={`text-sm ${statusStyles.label}`}>Autor</p>
-              <p className={`font-medium ${statusStyles.value}`}>
-                {displayAuthor}
-              </p>
-            </div>
-            <div>
-              <p className={`text-sm ${statusStyles.label}`}>Rok</p>
-              <p className={`font-medium ${statusStyles.value}`}>
-                {displayYear}
-              </p>
-            </div>
-            <div>
-              <p className={`text-sm ${statusStyles.label}`}>Žáner</p>
-              <p className={`font-medium ${statusStyles.value}`}>
-                {displayGenre}
-              </p>
-            </div>
-            {displayDescription && (
-              <div className="w-full">
-                <p className={`text-sm ${statusStyles.label}`}>Popis</p>
-                <p className={`font-medium ${statusStyles.value} text-sm`}>
-                  {displayDescription.length > 200
-                    ? `${displayDescription.substring(0, 200)}...`
-                    : displayDescription}
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center space-x-3">
+              <User2 className={`h-4 w-4 ${statusStyles.icon}`} />
+              <div>
+                <p className={`text-xs ${statusStyles.label}`}>Autor</p>
+                <p className={`text-sm font-medium ${statusStyles.value}`}>
+                  {displayAuthor}
                 </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Calendar className={`h-4 w-4 ${statusStyles.icon}`} />
+              <div>
+                <p className={`text-xs ${statusStyles.label}`}>Rok vydania</p>
+                <p className={`text-sm font-medium ${statusStyles.value}`}>
+                  {displayYear}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Tags className={`h-4 w-4 ${statusStyles.icon}`} />
+              <div>
+                <p className={`text-xs ${statusStyles.label}`}>Žáner</p>
+                <p className={`text-sm font-medium ${statusStyles.value}`}>
+                  {displayGenre}
+                </p>
+              </div>
+            </div>
+
+            {displayDescription && (
+              <div className="flex items-start space-x-3 pt-1">
+                <Info className={`h-4 w-4 ${statusStyles.icon} mt-0.5`} />
+                <div className="flex-1">
+                  <p className={`text-xs ${statusStyles.label}`}>Popis</p>
+                  <p
+                    className={`text-sm ${statusStyles.value} ${
+                      !isDescriptionExpanded ? "line-clamp-3" : ""
+                    }`}
+                  >
+                    {displayDescription}
+                  </p>
+                  {displayDescription.length > 150 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 h-8 px-2 text-xs"
+                      onClick={() =>
+                        setIsDescriptionExpanded(!isDescriptionExpanded)
+                      }
+                    >
+                      {isDescriptionExpanded
+                        ? "Zobraziť menej"
+                        : "Zobraziť viac"}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100">
-            Zobraziť detaily rozhodnutia
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50/80 rounded-md hover:bg-gray-100">
+            Detaily rozhodnutia
             {isDebugOpen ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
@@ -228,29 +272,36 @@ const BookDetails = ({ book, evaluation }) => {
             )}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2">
-            <div className="pl-4 space-y-1">
+            <div className="pl-3 space-y-1">
               {evaluation.decisions.length > 0 ? (
                 evaluation.decisions.map((decision, index) => (
                   <p
                     key={index}
                     className={`text-sm ${statusStyles.list} flex items-center gap-2`}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {decision}
+                    <span className="w-1 h-1 rounded-full bg-current flex-shrink-0 mt-1" />
+                    <span className="text-xs">{decision}</span>
                   </p>
                 ))
               ) : (
                 <p
                   className={`text-sm ${statusStyles.list} flex items-center gap-2`}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                  Neboli nájdené žiadne problémy - kniha spĺňa všetky kritériá
+                  <span className="w-1 h-1 rounded-full bg-current flex-shrink-0 mt-1" />
+                  <span className="text-xs">Kniha spĺňa všetky kritériá</span>
                 </p>
               )}
             </div>
           </CollapsibleContent>
         </Collapsible>
       </CardContent>
+
+      <CardFooter className="pt-2 pb-4">
+        <Button className={`w-full ${statusStyles.button}`} onClick={onNext}>
+          <ScanLine className="mr-2 h-4 w-4" />
+          Skenovať ďalšiu knihu
+        </Button>
+      </CardFooter>
     </Card>
   );
 };
@@ -477,6 +528,7 @@ const App = () => {
               <BookDetails
                 book={scannedBook}
                 evaluation={scannedBook.evaluation}
+                onNext={resetApp}
               />
             ))}
         </CardContent>
