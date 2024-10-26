@@ -21,11 +21,10 @@ import {
 } from "./components/ui/dialog";
 import { BrowserMultiFormatReader } from "@zxing/library";
 
-// Mock data service
+// Mock data service remains unchanged
 const mockBookService = {
   async getBookByISBN(isbn) {
     try {
-      // First try to fetch from Google Books API
       const response = await fetch(
         `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
       );
@@ -45,7 +44,6 @@ const mockBookService = {
         };
       }
 
-      // Fallback to mock database if no results found
       const mockBooks = {
         9783161484100: {
           isbn: "978-3-16-148410-0",
@@ -74,12 +72,11 @@ const mockBookService = {
   },
 };
 
-// Decision service (unchanged)
+// Decision service remains unchanged
 const evaluateBook = (book, rules) => {
   const decisions = [];
   let shouldKeep = true;
 
-  // Check publication year
   const bookAge = new Date().getFullYear() - book.publicationYear;
   if (bookAge > rules.maxAge) {
     decisions.push(
@@ -88,7 +85,6 @@ const evaluateBook = (book, rules) => {
     shouldKeep = false;
   }
 
-  // Check genre
   if (rules.recycleGenres.includes(book.genre)) {
     decisions.push(`Genre "${book.genre}" is in recycle list`);
     shouldKeep = false;
@@ -100,16 +96,42 @@ const evaluateBook = (book, rules) => {
   };
 };
 
-// Book details component (unchanged)
+// Improved BookDetails component with better status visibility
 const BookDetails = ({ book, evaluation }) => {
   if (!book) return null;
 
+  const statusStyles = evaluation.shouldKeep
+    ? {
+        card: "bg-green-50 border-green-200",
+        header: "bg-green-100/50",
+        badge:
+          "bg-green-100 text-green-800 hover:bg-green-100/80 border-green-200",
+        title: "text-green-900",
+        label: "text-green-600",
+        value: "text-green-900",
+        list: "text-green-800",
+      }
+    : {
+        card: "bg-red-50 border-red-200",
+        header: "bg-red-100/50",
+        badge: "bg-red-100 text-red-800 hover:bg-red-100/80 border-red-200",
+        title: "text-red-900",
+        label: "text-red-600",
+        value: "text-red-900",
+        list: "text-red-800",
+      };
+
   return (
-    <Card className="mt-4">
-      <CardHeader>
+    <Card
+      className={`mt-4 ${statusStyles.card} transition-colors duration-200`}
+    >
+      <CardHeader className={`${statusStyles.header}`}>
         <CardTitle className="flex items-center justify-between">
-          <span>{book.title}</span>
-          <Badge variant={evaluation.shouldKeep ? "success" : "destructive"}>
+          <span className={statusStyles.title}>{book.title}</span>
+          <Badge
+            variant="outline"
+            className={`${statusStyles.badge} text-sm px-4 py-1`}
+          >
             {evaluation.shouldKeep ? "Keep" : "Recycle"}
           </Badge>
         </CardTitle>
@@ -117,34 +139,38 @@ const BookDetails = ({ book, evaluation }) => {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-gray-500">Author</p>
-            <p className="font-medium">{book.author}</p>
+            <p className={`text-sm ${statusStyles.label}`}>Author</p>
+            <p className={`font-medium ${statusStyles.value}`}>{book.author}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Year</p>
-            <p className="font-medium">{book.publicationYear}</p>
+            <p className={`text-sm ${statusStyles.label}`}>Year</p>
+            <p className={`font-medium ${statusStyles.value}`}>
+              {book.publicationYear}
+            </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Genre</p>
-            <p className="font-medium">{book.genre}</p>
+            <p className={`text-sm ${statusStyles.label}`}>Genre</p>
+            <p className={`font-medium ${statusStyles.value}`}>{book.genre}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">ISBN</p>
-            <p className="font-medium">{book.isbn}</p>
+            <p className={`text-sm ${statusStyles.label}`}>ISBN</p>
+            <p className={`font-medium ${statusStyles.value}`}>{book.isbn}</p>
           </div>
         </div>
 
         <div className="mt-4">
-          <p className="text-sm text-gray-500 mb-2">Decision Reasoning:</p>
+          <p className={`text-sm ${statusStyles.label} mb-2`}>
+            Decision Reasoning:
+          </p>
           <ul className="list-disc pl-4 space-y-1">
             {evaluation.decisions.length > 0 ? (
               evaluation.decisions.map((decision, index) => (
-                <li key={index} className="text-sm">
+                <li key={index} className={`text-sm ${statusStyles.list}`}>
                   {decision}
                 </li>
               ))
             ) : (
-              <li className="text-sm">
+              <li className={`text-sm ${statusStyles.list}`}>
                 No issues found - book meets all criteria
               </li>
             )}
@@ -155,8 +181,10 @@ const BookDetails = ({ book, evaluation }) => {
   );
 };
 
-// Main App
+// Main App component remains unchanged
 const App = () => {
+  // ... rest of the App component code remains exactly the same ...
+
   // State
   const [isStreaming, setIsStreaming] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -164,6 +192,8 @@ const App = () => {
   const [scannedBook, setScannedBook] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastScanned, setLastScanned] = useState(null);
+  const [scanDebug, setScanDebug] = useState(null);
 
   // Refs
   const videoRef = useRef(null);
@@ -191,26 +221,49 @@ const App = () => {
   // Camera handling
   const startCamera = async () => {
     try {
+      setScanDebug("Initializing camera...");
+      const constraints = {
+        video: {
+          facingMode: "environment",
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+        },
+      };
+
       await codeReaderRef.current.decodeFromVideoDevice(
         undefined,
         videoRef.current,
-        async (result) => {
-          if (result && isScanning) {
-            const isbn = result.getText();
-            // Validate ISBN format (basic check)
-            if (/^[0-9-]{10,17}$/.test(isbn)) {
+        async (result, error) => {
+          if (result) {
+            const scannedText = result.getText();
+            setLastScanned(scannedText);
+            setScanDebug(`Detected code: ${scannedText}`);
+
+            const cleanISBN = scannedText.replace(/[-\s]/g, "");
+            if (/^(?:\d{10}|\d{13})$/.test(cleanISBN)) {
               setIsScanning(false);
-              await fetchBook(isbn);
+              await fetchBook(cleanISBN);
+            } else {
+              setScanDebug(`Invalid ISBN format: ${scannedText}`);
             }
           }
-        }
+          if (error && error?.message) {
+            if (!error.message.includes("not found")) {
+              setScanDebug(`Scan error: ${error.message}`);
+            }
+          }
+        },
+        constraints
       );
+
       setIsStreaming(true);
       setError(null);
+      setScanDebug("Camera ready. Point at an ISBN barcode.");
     } catch (err) {
       setError(
-        "Error accessing camera. Please check permissions or use manual input."
+        `Error accessing camera: ${err.message}. Please check permissions or use manual input.`
       );
+      setScanDebug(`Camera error: ${err.message}`);
       console.error("Error accessing camera:", err);
     }
   };
@@ -223,28 +276,31 @@ const App = () => {
     }
   };
 
-  // Book fetching
   const fetchBook = async (isbn) => {
     setIsLoading(true);
     setError(null);
+    setScanDebug(`Fetching book data for ISBN: ${isbn}`);
+
     try {
       const book = await mockBookService.getBookByISBN(isbn);
       if (book) {
         const evaluation = evaluateBook(book, rules);
         setScannedBook({ ...book, evaluation });
+        setScanDebug(`Successfully found book: ${book.title}`);
       } else {
         setError(`No book found with ISBN: ${isbn}`);
+        setScanDebug(`No book data found for ISBN: ${isbn}`);
         setScannedBook(null);
       }
     } catch (err) {
-      setError("Error fetching book details");
+      setError(`Error fetching book details: ${err.message}`);
+      setScanDebug(`API error: ${err.message}`);
       setScannedBook(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Manual ISBN submission
   const handleManualSubmit = (e) => {
     e.preventDefault();
     if (manualISBN.trim()) {
@@ -252,7 +308,6 @@ const App = () => {
     }
   };
 
-  // Reset app state
   const resetApp = () => {
     setScannedBook(null);
     setManualISBN("");
@@ -260,7 +315,6 @@ const App = () => {
     stopCamera();
   };
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       stopCamera();
@@ -285,7 +339,6 @@ const App = () => {
             <>
               <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
                 <video ref={videoRef} className="w-full h-full object-cover" />
-                <canvas ref={canvasRef} className="hidden" />
                 {!isStreaming && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/70">
                     Start camera or use manual input
@@ -300,10 +353,30 @@ const App = () => {
                 )}
               </div>
 
-              <div className="flex gap-2">
+              {isStreaming && (
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">
+                    Scanner Debug Info
+                  </h3>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p>Status: {scanDebug}</p>
+                    {lastScanned && (
+                      <p>
+                        Last scanned code:{" "}
+                        <span className="font-mono">{lastScanned}</span>
+                      </p>
+                    )}
+                    <p>Scanner active: {isScanning ? "Yes" : "No"}</p>
+                    <p>Camera stream: {isStreaming ? "Active" : "Inactive"}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={isStreaming ? stopCamera : startCamera}
                   className="flex-1"
+                  variant={isStreaming ? "destructive" : "default"}
                 >
                   {isStreaming ? (
                     <>
@@ -320,18 +393,18 @@ const App = () => {
 
                 {isStreaming && (
                   <Button
-                    onClick={() => setIsScanning(true)}
+                    onClick={() => setIsScanning(!isScanning)}
                     className="flex-1"
-                    disabled={isScanning}
+                    variant={isScanning ? "outline" : "default"}
                   >
                     <Scan className="mr-2 h-5 w-5" />
-                    {isScanning ? "Scanning..." : "Scan ISBN"}
+                    {isScanning ? "Stop Scanning" : "Start Scanning"}
                   </Button>
                 )}
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className="flex-1">
                       <Type className="mr-2 h-5 w-5" />
                       Manual Input
                     </Button>
@@ -342,9 +415,10 @@ const App = () => {
                     </DialogHeader>
                     <form onSubmit={handleManualSubmit} className="space-y-4">
                       <Input
-                        placeholder="Enter ISBN..."
+                        placeholder="Enter ISBN... (e.g., 978-0307474278)"
                         value={manualISBN}
                         onChange={(e) => setManualISBN(e.target.value)}
+                        className="font-mono"
                       />
                       <Button type="submit" className="w-full">
                         <BookOpen className="mr-2 h-5 w-5" />
