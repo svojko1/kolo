@@ -6,6 +6,8 @@ import {
   BookOpen,
   Type,
   RotateCcw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
@@ -19,6 +21,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./components/ui/collapsible";
 import { BrowserMultiFormatReader } from "@zxing/library";
 
 // Mock data service remains unchanged
@@ -46,7 +53,7 @@ const mockBookService = {
 
       const mockBooks = {
         9783161484100: {
-          isbn: "978-3-16-148410-0",
+          isbn: "9783161484100",
           title: "Modern Web Development",
           author: "Jane Smith",
           publicationYear: 2020,
@@ -98,6 +105,8 @@ const evaluateBook = (book, rules) => {
 
 // Improved BookDetails component with better status visibility
 const BookDetails = ({ book, evaluation }) => {
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+
   if (!book) return null;
 
   const statusStyles = evaluation.shouldKeep
@@ -126,56 +135,77 @@ const BookDetails = ({ book, evaluation }) => {
       className={`mt-4 ${statusStyles.card} transition-colors duration-200`}
     >
       <CardHeader className={`${statusStyles.header}`}>
-        <CardTitle className="flex items-center justify-between">
-          <span className={statusStyles.title}>{book.title}</span>
+        <div className="flex items-center justify-between">
           <Badge
             variant="outline"
-            className={`${statusStyles.badge} text-sm px-4 py-1`}
+            className={`${statusStyles.badge} text-lg px-6 py-2`}
           >
             {evaluation.shouldKeep ? "Keep" : "Recycle"}
           </Badge>
-        </CardTitle>
+          <span className={`text-sm ${statusStyles.value} opacity-70`}>
+            ISBN: {book.isbn}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className={`text-sm ${statusStyles.label}`}>Author</p>
-            <p className={`font-medium ${statusStyles.value}`}>{book.author}</p>
-          </div>
-          <div>
-            <p className={`text-sm ${statusStyles.label}`}>Year</p>
-            <p className={`font-medium ${statusStyles.value}`}>
-              {book.publicationYear}
-            </p>
-          </div>
-          <div>
-            <p className={`text-sm ${statusStyles.label}`}>Genre</p>
-            <p className={`font-medium ${statusStyles.value}`}>{book.genre}</p>
-          </div>
-          <div>
-            <p className={`text-sm ${statusStyles.label}`}>ISBN</p>
-            <p className={`font-medium ${statusStyles.value}`}>{book.isbn}</p>
+        <div className="space-y-3">
+          <h2 className={`text-xl font-semibold ${statusStyles.title}`}>
+            {book.title}
+          </h2>
+          <div className="flex flex-wrap gap-4">
+            <div className="min-w-[140px]">
+              <p className={`text-sm ${statusStyles.label}`}>Author</p>
+              <p className={`font-medium ${statusStyles.value}`}>
+                {book.author}
+              </p>
+            </div>
+            <div>
+              <p className={`text-sm ${statusStyles.label}`}>Year</p>
+              <p className={`font-medium ${statusStyles.value}`}>
+                {book.publicationYear}
+              </p>
+            </div>
+            <div>
+              <p className={`text-sm ${statusStyles.label}`}>Genre</p>
+              <p className={`font-medium ${statusStyles.value}`}>
+                {book.genre}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4">
-          <p className={`text-sm ${statusStyles.label} mb-2`}>
-            Decision Reasoning:
-          </p>
-          <ul className="list-disc pl-4 space-y-1">
-            {evaluation.decisions.length > 0 ? (
-              evaluation.decisions.map((decision, index) => (
-                <li key={index} className={`text-sm ${statusStyles.list}`}>
-                  {decision}
-                </li>
-              ))
+        <Collapsible open={isDebugOpen} onOpenChange={setIsDebugOpen}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100">
+            View Decision Details
+            {isDebugOpen ? (
+              <ChevronUp className="h-4 w-4" />
             ) : (
-              <li className={`text-sm ${statusStyles.list}`}>
-                No issues found - book meets all criteria
-              </li>
+              <ChevronDown className="h-4 w-4" />
             )}
-          </ul>
-        </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="pl-4 space-y-1">
+              {evaluation.decisions.length > 0 ? (
+                evaluation.decisions.map((decision, index) => (
+                  <p
+                    key={index}
+                    className={`text-sm ${statusStyles.list} flex items-center gap-2`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    {decision}
+                  </p>
+                ))
+              ) : (
+                <p
+                  className={`text-sm ${statusStyles.list} flex items-center gap-2`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                  No issues found - book meets all criteria
+                </p>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
@@ -277,6 +307,8 @@ const App = () => {
   };
 
   const fetchBook = async (isbn) => {
+    if (isLoading) return; // Prevent multiple fetches
+
     setIsLoading(true);
     setError(null);
     setScanDebug(`Fetching book data for ISBN: ${isbn}`);
@@ -287,6 +319,7 @@ const App = () => {
         const evaluation = evaluateBook(book, rules);
         setScannedBook({ ...book, evaluation });
         setScanDebug(`Successfully found book: ${book.title}`);
+        stopCamera(); // Automatically stop camera after successful scan
       } else {
         setError(`No book found with ISBN: ${isbn}`);
         setScanDebug(`No book data found for ISBN: ${isbn}`);
@@ -322,60 +355,55 @@ const App = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
+    <div className="min-h-screen bg-gray-100 p-4">
+      <Card className="max-w-md mx-auto shadow-lg">
+        <CardHeader className="space-y-1">
           <CardTitle className="flex items-center justify-between">
-            <span>Book Evaluation Scanner</span>
+            <span className="text-lg">Book Scanner</span>
             {(scannedBook || error) && (
-              <Button variant="ghost" size="icon" onClick={resetApp}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={resetApp}
+                className="hover:bg-gray-100"
+              >
                 <RotateCcw className="h-5 w-5" />
               </Button>
             )}
           </CardTitle>
+          {!scannedBook && !isLoading && (
+            <p className="text-sm text-gray-500">
+              Scan a book's ISBN or enter it manually
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {!scannedBook && (
+          {!scannedBook && !isLoading && (
             <>
-              <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
-                <video ref={videoRef} className="w-full h-full object-cover" />
+              <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3]">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  playsInline // Better mobile handling
+                />
                 {!isStreaming && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white/70">
-                    Start camera or use manual input
+                  <div className="absolute inset-0 flex items-center justify-center text-white/70 text-center px-4">
+                    Tap "Start Camera" to begin scanning
                   </div>
                 )}
                 {isScanning && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-64 h-64 border-2 border-blue-500 rounded-lg animate-pulse">
+                    <div className="w-48 h-48 border-2 border-blue-500 rounded-lg animate-pulse">
                       <div className="w-full h-1 bg-blue-500 animate-scan"></div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {isStreaming && (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">
-                    Scanner Debug Info
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p>Status: {scanDebug}</p>
-                    {lastScanned && (
-                      <p>
-                        Last scanned code:{" "}
-                        <span className="font-mono">{lastScanned}</span>
-                      </p>
-                    )}
-                    <p>Scanner active: {isScanning ? "Yes" : "No"}</p>
-                    <p>Camera stream: {isStreaming ? "Active" : "Inactive"}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 <Button
                   onClick={isStreaming ? stopCamera : startCamera}
-                  className="flex-1"
+                  className="w-full py-6 text-lg"
                   variant={isStreaming ? "destructive" : "default"}
                 >
                   {isStreaming ? (
@@ -394,7 +422,7 @@ const App = () => {
                 {isStreaming && (
                   <Button
                     onClick={() => setIsScanning(!isScanning)}
-                    className="flex-1"
+                    className="w-full py-6 text-lg"
                     variant={isScanning ? "outline" : "default"}
                   >
                     <Scan className="mr-2 h-5 w-5" />
@@ -404,23 +432,23 @@ const App = () => {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="flex-1">
+                    <Button variant="outline" className="w-full py-6 text-lg">
                       <Type className="mr-2 h-5 w-5" />
-                      Manual Input
+                      Enter ISBN Manually
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="w-[90%]">
                     <DialogHeader>
-                      <DialogTitle>Enter ISBN Manually</DialogTitle>
+                      <DialogTitle>Enter ISBN</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleManualSubmit} className="space-y-4">
                       <Input
-                        placeholder="Enter ISBN... (e.g., 978-0307474278)"
+                        placeholder="978-0307474278"
                         value={manualISBN}
                         onChange={(e) => setManualISBN(e.target.value)}
-                        className="font-mono"
+                        className="font-mono text-lg py-6"
                       />
-                      <Button type="submit" className="w-full">
+                      <Button type="submit" className="w-full py-6">
                         <BookOpen className="mr-2 h-5 w-5" />
                         Look Up Book
                       </Button>
@@ -428,22 +456,22 @@ const App = () => {
                   </DialogContent>
                 </Dialog>
               </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
             </>
           )}
 
-          {isLoading && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-500">
-                Loading book details...
+          {isLoading && !scannedBook && (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="mt-4 text-sm text-gray-500">
+                Looking up book details...
               </p>
             </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
           )}
 
           {scannedBook && (
@@ -461,7 +489,7 @@ const App = () => {
             transform: translateY(0);
           }
           100% {
-            transform: translateY(256px);
+            transform: translateY(192px);
           }
         }
         .animate-scan {
